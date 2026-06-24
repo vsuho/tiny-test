@@ -1,0 +1,94 @@
+name: CI Template
+
+# FAILURE POLICY:
+# Blocks merge:  gitleaks, sast, dependency-audit, test
+# Warns only:    sbom (informational only)
+## Configure these rules from Github branch settings! ##
+
+on: 
+  push: 
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+      # Gitleaks
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e #v3.0.0
+        env: 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # SAST - CodeQL
+  sast:
+    runs-on: ubuntu-latest
+    permissions: 
+      security-events: write
+    steps: 
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Init CodeQL
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      - name: Analyze
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+  
+      # Dep audit - npm audit + OSV scanner
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: npm audit
+        run:  npm audit --audit-level=high
+      - name: OSV scanner
+        uses: google/osv-scanner-action/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
+        with: 
+          scan-args: |-
+            --recursive
+            ./
+
+      # Tests
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Install dependencies
+        run:  npm ci
+      - name: Run tests
+        run:  npm test
+
+      # SBOM
+  sbom: 
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Generate SBOM
+        uses: anchore/sbom-action/@e22c389904149dbc22b58101806040fa8d37a610  # v0.24.0
+        with: 
+          artifact-name: sbom.spdx.json
+          upload-artifact: true
+        
+      # Container image scan
+
+    # container-scan:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+  #     - name: Build image
+  #       run: docker build -t myapp:latest .
+  #     - name: Run Trivy container scan
+  #       uses: aquasecurity/trivy-action/@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+  #       with:
+  #         image-ref: myapp:latest
+  #         exit-code: 1
+  #         severity: HIGH,CRITICAL
+
+
+
+
+
+  

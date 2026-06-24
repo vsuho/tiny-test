@@ -1,0 +1,7 @@
+# Kaikki tiedostot
+* @vsuho
+
+# CI/CD ja tietoturvatiedostot
+.github/ @vsuho
+Dockerfile @vsuho
+SECURITY.md @vsuho
